@@ -9,13 +9,13 @@ ray.init()
 def control_lighting(intensity):
     print(f"Adjusting lighting to intensity {intensity}")
     return f"Lighting set to {intensity}"
-
+ 
 @ray.remote
 def control_heating(temperature):
     print(f"Setting heating to {temperature} °C")
     return f"Heating set to {temperature} °C"
 
-# Удалённые классы для датчиков
+# Удалённые классы для датчиков.
 @ray.remote
 class TemperatureSensor:
     def __init__(self):
