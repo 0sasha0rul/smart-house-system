@@ -3,6 +3,7 @@
 
 #include <QString>
 #include <QSqlDatabase>
+#include <QJsonObject>
 
 class DatabaseManager {
 public:
@@ -22,14 +23,17 @@ public:
     QString getUserRole(const QString &username);
 
     bool addRoom(const QString &roomName);
-    bool addDevice(const QString &roomName, const QString &deviceType, QString &generatedDeviceName);
+    bool addDevice(const QString &roomName, const QString &deviceType, QString &generatedDeviceName, QString &deviceGroup, QJsonObject &parameters);
     bool addScenario(const QString &scenario);
-
+    QMap<QString, QStringList> getAllRoomSensors();
     QMap<QString, QStringList> getAllDevices();
     QStringList getAllRooms();
     QStringList getAllScenarios();
     QStringList getDevicesForRoom(const QString &roomName);
     QMap<QString, QStringList> getDevicesGroupedByType();
+    bool addScenario(const QString &name, const QJsonArray &devices);
+    QJsonArray getDevicesByScenario(const QString &scenarioName);
+
 
 private:
     DatabaseManager();

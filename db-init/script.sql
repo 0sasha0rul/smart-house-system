@@ -37,6 +37,15 @@ CREATE TABLE IF NOT EXISTS sensors (
     FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS sensor_parameters (
+    id SERIAL PRIMARY KEY,
+    sensor_id INTEGER NOT NULL,
+    parameter_name TEXT NOT NULL,  -- Название параметра, например, "temperature" или "humidity"
+    parameter_value NUMERIC,      -- Значение параметра
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Время записи параметра
+    FOREIGN KEY (sensor_id) REFERENCES sensors(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS sensor_events (
     id SERIAL PRIMARY KEY,
     sensor_id INTEGER,
@@ -47,16 +56,7 @@ CREATE TABLE IF NOT EXISTS sensor_events (
 
 CREATE TABLE IF NOT EXISTS scenarios (
     id SERIAL PRIMARY KEY,
-    name TEXT UNIQUE,
-    trigger_event TEXT
-);
-
-CREATE TABLE IF NOT EXISTS scenario_actions (
-    id SERIAL PRIMARY KEY,
-    scenario_id INTEGER,
-    device_id INTEGER,
-    action TEXT,
-    parameters TEXT, -- JSON
-    FOREIGN KEY (scenario_id) REFERENCES scenarios(id) ON DELETE CASCADE,
-    FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
+    name TEXT UNIQUE NOT NULL,       
+    devices JSON NOT NULL,
+    is_active BOOLEAN DEFAULT FALSE           
 );

@@ -45,9 +45,10 @@ void MainWindow::configureUIBasedOnRole() {
     addRoomButton->setVisible(isAdmin);
     addDeviceButton->setVisible(isAdmin);
     addScenarioButton->setVisible(isAdmin);
-    addScenarioButton->setVisible(isAdmin);
 }
+
 MainWindow::~MainWindow() {}
+
 auto addShadowEffect = [](QPushButton* button) {
     QGraphicsDropShadowEffect *shadowEffect = new QGraphicsDropShadowEffect();
     shadowEffect->setOffset(0, 3);
@@ -74,32 +75,39 @@ void MainWindow::initUI() {
     allDevicesButton = new QPushButton("Все устройства", this);
     connect(allDevicesButton, &QPushButton::clicked, this, &MainWindow::onAllDevicesButtonClicked);
 
-    noticeButton = new QPushButton("Уведомления",this);
-    connect(noticeButton, &QPushButton::clicked, this, &MainWindow::onNoticeButtonClicked);
+    roomSensorsButton = new QPushButton("Датчики", this);
+    connect(roomSensorsButton, &QPushButton::clicked, this, &MainWindow::onRoomSensorsButtonClicked);
+
+    //noticeButton = new QPushButton("Уведомления",this);
+    //connect(noticeButton, &QPushButton::clicked, this, &MainWindow::onNoticeButtonClicked);
 
     addDeviceButton->setFixedSize(200, 50);
     scenarioButton->setFixedSize(200, 60);
     allDevicesButton->setFixedSize(200, 60);
+    roomSensorsButton->setFixedSize(200, 60);
     addRoomButton->setFixedSize(200, 50);
     addScenarioButton->setFixedSize(200, 50);
     logoutButton->setFixedSize(100, 35);
-    noticeButton->setFixedSize(50,50);
+    //noticeButton->setFixedSize(50,50);
 
     sideMenu = new QWidget(this);
     sideMenuLayout = new QVBoxLayout(sideMenu);
     sideMenuLayout->addWidget(scenarioButton);
     sideMenuLayout->addWidget(allDevicesButton);
+    sideMenuLayout->addWidget(roomSensorsButton);
     sideMenuLayout->addStretch();
     sideMenuLayout->setSpacing(20);
 
     QHBoxLayout *headerLayout = new QHBoxLayout();
     headerLayout->addStretch();
+    headerLayout->addWidget(roomSensorsButton);
     headerLayout->addWidget(addRoomButton);
     headerLayout->addWidget(addDeviceButton);
     headerLayout->addWidget(addScenarioButton);
 
-    headerLayout->addStretch();
-    headerLayout->addWidget(noticeButton);
+
+    //headerLayout->addStretch();
+    //headerLayout->addWidget(noticeButton);
 
     headerLayout->addWidget(logoutButton);
 
@@ -131,7 +139,7 @@ void MainWindow::initUI() {
     addShadowEffect(addRoomButton);
     addShadowEffect(logoutButton);
     addShadowEffect(addScenarioButton);
-    addShadowEffect(noticeButton);
+    addShadowEffect(roomSensorsButton);
 
     setStyleSheet("background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,  "
                   "stop: 0.5 #333464, stop: 1 #7a54a6);");
@@ -150,12 +158,12 @@ void MainWindow::initUI() {
     scenarioButton->setStyleSheet(buttonStyle);
     allDevicesButton->setObjectName("allDevicesButton");
     allDevicesButton->setStyleSheet(buttonStyle);
+    roomSensorsButton->setObjectName("roomSensorsButton");
+    roomSensorsButton->setStyleSheet(buttonStyle);
     logoutButton -> setStyleSheet("QPushButton {""background-color: #7471c4; ""border-radius: 10px;""padding: 6px;""font: bold 20px  'New York';""}""QPushButton:hover {""background-color: rgb(114, 7, 168, 40);""}");
     addRoomButton->setStyleSheet(buttonStyle);
     addDeviceButton ->setStyleSheet(buttonStyle);
     addScenarioButton->setStyleSheet(buttonStyle);
-    noticeButton->setStyleSheet(buttonStyle);
-
 }
 
 void MainWindow::loadRoomsFromDatabase()
@@ -165,24 +173,6 @@ void MainWindow::loadRoomsFromDatabase()
     NetworkManager::instance().sendRequest(request);
 }
 
-void MainWindow::onNoticeButtonClicked()
-{
-    QString pathNoticeIcon = "C:\\Programming\\smart-house-system\\SmartHouseSystem\\images\\notice.png";
-    QIcon noticeIcon(pathNoticeIcon);
-    noticeButton->setIcon(noticeIcon);
-    noticeButton->setIconSize(QSize(32,32));
-
-    // Меню для отображения уведомлений
-    QMenu *menu = new QMenu(noticeButton);
-
-    // Пример добавления уведомлений
-    menu->addAction("Уведомление 1");
-    menu->addAction("Уведомление 2");
-    menu->addAction("Уведомление 3");
-
-    // Привязываем меню к кнопке
-    noticeButton->setMenu(menu);
-}
 
 void MainWindow::onAllDevicesButtonClicked()
 {
@@ -191,7 +181,11 @@ void MainWindow::onAllDevicesButtonClicked()
     NetworkManager::instance().sendRequest(request);
 }
 
-
+void MainWindow::onRoomSensorsButtonClicked(){
+    QJsonObject request;
+    request["action"] = "loadRoomSensors";
+    NetworkManager::instance().sendRequest(request);
+}
 void MainWindow::onAddRoomButtonClicked()
 {
     QStringList predefinedRooms = {"Баня", "Подвал", "Ванная", "Гостиная", "Детская", "Гараж", "Сауна", "Кухня", "Чердак"};
@@ -248,86 +242,108 @@ void MainWindow::onScenarioButtonClicked() {
     request["action"] = "loadScenarios";
     NetworkManager::instance().sendRequest(request);
 }
-void MainWindow::onAddScenarioButtonClicked(){
-    // Создаем диалоговое окно для редактирования сценария
+void MainWindow::onAddScenarioButtonClicked() {
     QDialog *scenarioDialog = new QDialog(this);
     scenarioDialog->setWindowTitle("Создание сценария");
     scenarioDialog->resize(600, 400);
 
     QVBoxLayout *dialogLayout = new QVBoxLayout(scenarioDialog);
 
-    // Список для выбора устройств
     QListWidget *availableDevices = new QListWidget(scenarioDialog);
-    availableDevices->addItems({"Устройство 1", "Устройство 2", "Устройство 3", "Устройство 4"});
     availableDevices->setSelectionMode(QAbstractItemView::SingleSelection);
     availableDevices->setDragEnabled(true);
 
-    // Поле для выбора устройств в сценарии
     QListWidget *scenarioField = new QListWidget(scenarioDialog);
     scenarioField->setAcceptDrops(true);
     scenarioField->setDragDropMode(QAbstractItemView::DropOnly);
 
-    // Расположение списков
-    QHBoxLayout *listsLayout = new QHBoxLayout();
     QVBoxLayout *availableLayout = new QVBoxLayout();
-    QVBoxLayout *scenarioLayout = new QVBoxLayout();
-
     availableLayout->addWidget(new QLabel("Доступные устройства:"));
     availableLayout->addWidget(availableDevices);
 
+    QVBoxLayout *scenarioLayout = new QVBoxLayout();
     scenarioLayout->addWidget(new QLabel("Поле сценария:"));
     scenarioLayout->addWidget(scenarioField);
 
+    QHBoxLayout *listsLayout = new QHBoxLayout();
     listsLayout->addLayout(availableLayout);
     listsLayout->addLayout(scenarioLayout);
 
     dialogLayout->addLayout(listsLayout);
 
-    // Кнопки управления
     QPushButton *saveButton = new QPushButton("Сохранить", scenarioDialog);
     QPushButton *cancelButton = new QPushButton("Отмена", scenarioDialog);
-    QHBoxLayout *buttonsLayout = new QHBoxLayout();
 
+    QHBoxLayout *buttonsLayout = new QHBoxLayout();
     buttonsLayout->addStretch();
     buttonsLayout->addWidget(saveButton);
     buttonsLayout->addWidget(cancelButton);
 
     dialogLayout->addLayout(buttonsLayout);
 
-    // Обработка нажатия кнопок
-    connect(saveButton, &QPushButton::clicked, this, [this, scenarioField, availableDevices, scenarioDialog]() {
+    QJsonObject request;
+    request["action"] = "loadScenarioDevices";
+    NetworkManager::instance().sendRequest(request);
+
+    connect(&NetworkManager::instance(), &NetworkManager::responseReceived, this, [availableDevices](const QJsonObject &response) {
+        qDebug() << "Response received:" << response;
+
+        if (response["action"].toString() == "loadScenarioDevices") {
+            QJsonArray devicesArray = response["devices"].toArray();
+            for (const QJsonValue &value : devicesArray) {
+                QJsonObject deviceObject = value.toObject();
+                QString type = deviceObject["type"].toString();
+                QJsonArray roomsArray = deviceObject["rooms"].toArray();
+
+                for (const QJsonValue &room : roomsArray) {
+                    QString roomName = room.toString();
+                    QString itemText = QString("%1: %2").arg(roomName).arg(type);
+                    qDebug() << "Adding item:" << itemText;
+                    availableDevices->addItem(itemText);
+                }
+            }
+        } else {
+            qDebug() << "Unexpected action in response.";
+        }
+    });
+    connect(saveButton, &QPushButton::clicked, this, [this, scenarioField, scenarioDialog]() {
         QStringList scenarioDevices;
         for (int i = 0; i < scenarioField->count(); ++i) {
             scenarioDevices << scenarioField->item(i)->text();
         }
 
         if (scenarioDevices.isEmpty()) {
-            QMessageBox::information(this, "Ошибка", "Сценарий не может быть пустым.");
+            QMessageBox::warning(this, "Ошибка", "Сценарий не может быть пустым.");
             return;
         }
 
-        // Получаем имя сценария с помощью диалога
-        QString selectedScenario = QInputDialog::getText(this, "Добавить сценарий", "Введите имя сценария:");
-
-        if (!selectedScenario.isEmpty()) {
-            QJsonObject request;
-            request["action"] = "addScenario";
-            request["scenarioName"] = selectedScenario;
-            NetworkManager::instance().sendRequest(request);
-        } else {
-            QMessageBox::information(this, "Информация", "Добавление сценария отменено.");
+        QString scenarioName = QInputDialog::getText(this, "Добавить сценарий", "Введите имя сценария:");
+        if (scenarioName.isEmpty()) {
+            QMessageBox::warning(this, "Ошибка", "Имя сценария не может быть пустым.");
+            return;
         }
 
-        // Закрытие диалога после сохранения
+        // Формируем запрос на сохранение сценария
+        QJsonObject request;
+        request["action"] = "addScenario";
+        request["scenarioName"] = scenarioName;
+
+        QJsonArray devicesArray;
+        for (const QString &device : scenarioDevices) {
+            devicesArray.append(device);
+        }
+        request["devices"] = devicesArray;
+
+        NetworkManager::instance().sendRequest(request);
+
+        QMessageBox::information(this, "Информация", "Сценарий успешно сохранен!");
         scenarioDialog->accept();
     });
 
     connect(cancelButton, &QPushButton::clicked, scenarioDialog, &QDialog::reject);
 
-    // Открываем диалог
     scenarioDialog->exec();
 }
-
 
 void MainWindow::handleServerResponse(const QJsonObject &response)
 {
@@ -350,7 +366,12 @@ void MainWindow::handleServerResponse(const QJsonObject &response)
         handleLoadRoomDevicesResponse(response);
     }else if (action == "toggleDevice") {
         handleToggleDeviceResponse(response);
+    }else if (action == "loadAllDevicesForScenarios") {
+        handleLoadAllDevicesForScenarios(response);
+    }else if (action=="loadRoomSensors"){
+        handleLoadRoomSensorsResponse(response);
     }
+
 }
 void MainWindow::handleToggleDeviceResponse(const QJsonObject &response)
 {
@@ -363,6 +384,36 @@ void MainWindow::handleToggleDeviceResponse(const QJsonObject &response)
     } else {
         QMessageBox::warning(this, "Ошибка", "Не удалось обновить состояние устройства: " + message);
     }*/
+}
+void MainWindow::handleLoadRoomSensorsResponse(const QJsonObject &response){
+    QJsonArray sensorsArray = response["sensors"].toArray();
+
+    QVector<QString> sensors;
+    for (const QJsonValue &value : sensorsArray) {
+        QJsonObject sensorObject = value.toObject();
+        QString sensorName = sensorObject["type"].toString();
+        QJsonArray roomsArray = sensorObject["rooms"].toArray();
+        QStringList roomList;
+        for (const QJsonValue &room : roomsArray) {
+            roomList.append(room.toString());
+        }
+
+        QString sensorEntry = sensorName + ": " + roomList.join(", ");
+        sensors.push_back(sensorEntry);
+    }
+    displayAllSensorsInGrid(sensors);
+
+}
+void MainWindow::handleLoadAllDevicesForScenarios(const QJsonObject &response) {
+    QJsonArray devicesArray = response["devices"].toArray();
+    QVector<QString> devices;
+
+    for (const QJsonValue &value : devicesArray) {
+        QString device = value.toString();
+        devices.append(device);
+    }
+
+    emit devicesLoaded(devices);
 }
 void MainWindow::handleLoadRoomsResponse(const QJsonObject &response) {
     QJsonArray roomsArray = response["rooms"].toArray();
@@ -382,8 +433,8 @@ void MainWindow::handleLoadRoomsResponse(const QJsonObject &response) {
         delete widget;
     }
 
+    int fontId = QFontDatabase::addApplicationFont("C:/Users/2005k/Documents/SmartHouseSystem/images/Oswald/Oswald-VariableFont_wght.ttf");
 
-    int fontId = QFontDatabase::addApplicationFont("/home/aleksandra/Desktop/MAIN_PROJECT/smart-house-system/Oswald/Oswald-VariableFont_wght.ttf");
     QStringList fontFamilies = QFontDatabase::applicationFontFamilies(fontId);
     QString oswaldFont = fontFamilies.isEmpty() ? "Arial" : fontFamilies.at(0);
 
@@ -441,14 +492,14 @@ void MainWindow::handleLoadAllDevicesResponse(const QJsonObject &response) {
     QVector<QString> devices;
     for (const QJsonValue &value : devicesArray) {
         QJsonObject deviceObject = value.toObject();
-        QString deviceType = deviceObject["type"].toString();
+        QString deviceName = deviceObject["name"].toString();
         QJsonArray roomsArray = deviceObject["rooms"].toArray();
         QStringList roomList;
         for (const QJsonValue &room : roomsArray) {
             roomList.append(room.toString());
         }
 
-        QString deviceEntry = deviceType + ": " + roomList.join(", ");
+        QString deviceEntry = deviceName + ": " + roomList.join(", ");
         devices.push_back(deviceEntry);
     }
     displayAllDevicesInGrid(devices);
@@ -500,19 +551,42 @@ void MainWindow::handleLoadScenariosResponse(const QJsonObject &response) {
     for (const QJsonValue &scenario : scenariosArray) {
         QString scenarioName = scenario.toString();
         scenarios.push_back(scenarioName);
-    //displayItemsInGrid(scenarios, false);
-
+    }
+    displayScenariosInGrid(scenarios);
+}
+void MainWindow::displayScenariosInGrid(QVector<QString> &scenarios){
+    clearGridLayout(gridLayout);
+    int row = 0, col = 0;
+    for (const QString &scenario : scenarios) {
+        QPushButton *button = new QPushButton(this);
+        button->setMinimumSize(200, 50);
+        button->setStyleSheet("QPushButton {"
+                              "background-color: #b3a2ee; "
+                              "border-radius: 20px;"
+                              "padding: 15px;"
+                              "font: bold 14px  'New york';"
+                              "}");
+        button->setText(scenario);
+        button->setCheckable(true);
+        button->setObjectName(scenario);
+        addShadowEffect(button);
+        connect(button, &QPushButton::clicked, this, [this, button, scenario]() {
+            QJsonObject request;
+            request["action"] = "toggleScenario";
+            request["scenarioName"] = scenario;
+            request["state"] = button->isChecked(); // true (включить) или false (выключить)
+            button->setStyleSheet(button->isChecked() ? "background-color: #8fc98b;""border-radius: 25px;" : "background-color: #f9e2bd;""border-radius: 25px;");
+            NetworkManager::instance().sendRequest(request);
+        });
+        gridLayout->addWidget(button, row, col);
+        if (++col >= 3) {
+            col = 0;
+            ++row;
+        }
     }
 }
 
-
-
-
-
-// У Саши было без const QString roomName
 void MainWindow::displayItemsInGrid(const QVector<QString> &items, const QString roomName, bool isDevices)
-
-
 {
     clearGridLayout(gridLayout);
 
@@ -526,133 +600,120 @@ void MainWindow::displayItemsInGrid(const QVector<QString> &items, const QString
             shadowEffect->setBlurRadius(7);
             button->setGraphicsEffect(shadowEffect);
         };
-        if (item == "лампа") {
+        if (item.startsWith("лампа")) {
             button->setFixedSize(170, 150);
             button->setStyleSheet("QPushButton {""background-color: rgb(191, 161, 249, 50);""border-radius: 25px;""}""QPushButton:hover {""background-color: rgb(114, 7, 168, 40);""}");
             addShadowEffect(button);
-            button->setIcon(QIcon("/home/aleksandra/Desktop/MAIN_PROJECT/smart-house-system/images/lamp.png"));
+            button->setIcon(QIcon("C:/Users/2005k/Documents/SmartHouseSystem/images/lamp.png"));
             QSize iconSize(90, 90);
             button->setIconSize(iconSize);
             button->setText("");
 
         }
-        if (item == "кондиционер") {
+        if (item.startsWith("кондиционер")) {
             button->setFixedSize(170, 150);
             button->setStyleSheet("QPushButton {""background-color: rgb(191, 161, 249, 50);""border-radius: 25px;""}""QPushButton:hover {""background-color: rgb(114, 7, 168, 40);""}");
             addShadowEffect(button);
-            button->setIcon(QIcon("/home/aleksandra/Desktop/MAIN_PROJECT/smart-house-system/images/conditioner.png"));
+            button->setIcon(QIcon("C:/Users/2005k/Documents/SmartHouseSystem/images/conditioner.png"));
             QSize iconSize(70, 70);
             button->setIconSize(iconSize);
             button->setText("");
         }
-        if (item == "обогреватель") {
+        if (item.startsWith("обогреватель")) {
             button->setFixedSize(170, 150);
             button->setStyleSheet("QPushButton {""background-color: rgb(191, 161, 249, 50);""border-radius: 25px;""}""QPushButton:hover {""background-color: rgb(114, 7, 168, 40);""}");
             addShadowEffect(button);
-            button->setIcon(QIcon("/home/aleksandra/Desktop/MAIN_PROJECT/smart-house-system/images/heater.png"));
+            button->setIcon(QIcon("C:/Users/2005k/Documents/SmartHouseSystem/images/heater.png"));
             QSize iconSize(70, 70);
             button->setIconSize(iconSize);
             button->setText("");
         }
-        if (item == "тёплый пол") {
+        if (item.startsWith("тёплый пол")) {
             button->setFixedSize(170, 150);
             button->setStyleSheet("QPushButton {""background-color: rgb(191, 161, 249, 50);""border-radius: 25px;""}""QPushButton:hover {""background-color: rgb(114, 7, 168, 40);""}");
             addShadowEffect(button);
-            button->setIcon(QIcon("/home/aleksandra/Desktop/MAIN_PROJECT/smart-house-system/images/floor.png"));
+            button->setIcon(QIcon("C:/Users/2005k/Documents/SmartHouseSystem/images/floor.png"));
             QSize iconSize(70, 70);
             button->setIconSize(iconSize);
             button->setText("");
         }
-        if (item == "увлажнитель") {
+        if (item.startsWith("увлажнитель")) {
             button->setFixedSize(170, 150);
             button->setStyleSheet("QPushButton {""background-color: rgb(191, 161, 249, 50);""border-radius: 25px;""}""QPushButton:hover {""background-color: rgb(114, 7, 168, 40);""}");
             addShadowEffect(button);
-            button->setIcon(QIcon("/home/aleksandra/Desktop/MAIN_PROJECT/smart-house-system/images/humidifier.png"));
+            button->setIcon(QIcon("C:/Users/2005k/Documents/SmartHouseSystem/images/humidifier.png"));
             QSize iconSize(70, 70);
             button->setIconSize(iconSize);
             button->setText("");
         }
-        if (item == "колонка") {
+        if (item.startsWith("колонка")) {
             button->setFixedSize(170, 150);
             button->setStyleSheet("QPushButton {""background-color: rgb(191, 161, 249, 50);""border-radius: 25px;""}""QPushButton:hover {""background-color: rgb(114, 7, 168, 40);""}");
             addShadowEffect(button);
-            button->setIcon(QIcon("/home/aleksandra/Desktop/MAIN_PROJECT/smart-house-system/images/column.png"));
+            button->setIcon(QIcon("C:/Users/2005k/Documents/SmartHouseSystem/images/column.png"));
             QSize iconSize(70, 70);
             button->setIconSize(iconSize);
             button->setText("");
         }
-        if (item == "замок") {
+        if (item.startsWith("замок")) {
             button->setFixedSize(170, 150);
             button->setStyleSheet("QPushButton {""background-color: rgb(191, 161, 249, 50);""border-radius: 25px;""}""QPushButton:hover {""background-color: rgb(114, 7, 168, 40);""}");
             addShadowEffect(button);
-            button->setIcon(QIcon("/home/aleksandra/Desktop/MAIN_PROJECT/smart-house-system/images/lock.png"));
+            button->setIcon(QIcon("C:/Users/2005k/Documents/SmartHouseSystem/images/lock.png"));
             QSize iconSize(70, 70);
             button->setIconSize(iconSize);
             button->setText("");
         }
-        if (item == "кофемашина") {
+        if (item.startsWith("кофемашина")) {
             button->setFixedSize(170, 150);
             button->setStyleSheet("QPushButton {""background-color: rgb(191, 161, 249, 50);""border-radius: 25px;""}""QPushButton:hover {""background-color: rgb(114, 7, 168, 40);""}");
             addShadowEffect(button);
-            button->setIcon(QIcon("/home/aleksandra/Desktop/MAIN_PROJECT/smart-house-system/images/coffee.png"));
+            button->setIcon(QIcon("C:/Users/2005k/Documents/SmartHouseSystem/images/coffee.png"));
             QSize iconSize(70, 70);
             button->setIconSize(iconSize);
             button->setText("");
         }
-        if (item == "сигнализация") {
+        if (item.startsWith("сигнализация")) {
             button->setFixedSize(170, 150);
             button->setStyleSheet("QPushButton {""background-color: rgb(191, 161, 249, 50);""border-radius: 25px;""}""QPushButton:hover {""background-color: rgb(114, 7, 168, 40);""}");
             addShadowEffect(button);
-            button->setIcon(QIcon("/home/aleksandra/Desktop/MAIN_PROJECT/smart-house-system/images/sirena.png"));
+            button->setIcon(QIcon("C:/Users/2005k/Documents/SmartHouseSystem/images/sirena.png"));
             QSize iconSize(70, 70);
             button->setIconSize(iconSize);
             button->setText("");
         }
+        if (item.startsWith("робот-пылесос")) {
 
-        if (item == "робот-пылесос") {
             button->setFixedSize(170, 150);
             button->setStyleSheet("QPushButton {""background-color: rgb(191, 161, 249, 50);""border-radius: 25px;""}""QPushButton:hover {""background-color: rgb(114, 7, 168, 40);""}");
             addShadowEffect(button);
-            button->setIcon(QIcon("/home/aleksandra/Desktop/MAIN_PROJECT/smart-house-system/images/robot.png"));
+            button->setIcon(QIcon("C:/Users/2005k/Documents/SmartHouseSystem/images/robot.png"));
             QSize iconSize(70, 70);
             button->setIconSize(iconSize);
             button->setText("");
         }
-        if (item == "шторы") {
+        if (item.startsWith("шторы")) {
             button->setFixedSize(170, 150);
             button->setStyleSheet("QPushButton {""background-color: rgb(191, 161, 249, 50);""border-radius: 25px;""}""QPushButton:hover {""background-color: rgb(114, 7, 168, 40);""}");
             addShadowEffect(button);
-            button->setIcon(QIcon("/home/aleksandra/Desktop/MAIN_PROJECT/smart-house-system/images/curtains.png"));
+            button->setIcon(QIcon("C:/Users/2005k/Documents/SmartHouseSystem/images/curtains.png"));
             QSize iconSize(70, 70);
             button->setIconSize(iconSize);
             button->setText("");
         }
-        if (item == "стиральная машина") {
+        if (item.startsWith("стиральная машина")) {
             button->setFixedSize(170, 150);
             button->setStyleSheet("QPushButton {""background-color: rgb(191, 161, 249, 50);""border-radius: 25px;""}""QPushButton:hover {""background-color: rgb(114, 7, 168, 40);""}");
             addShadowEffect(button);
-            button->setIcon(QIcon("/home/aleksandra/Desktop/MAIN_PROJECT/smart-house-system/images/washing.png"));
+            button->setIcon(QIcon("C:/Users/2005k/Documents/SmartHouseSystem/images/washing.png"));
             QSize iconSize(70, 70);
             button->setIconSize(iconSize);
             button->setText("");
         }
-        if (item == "Наступила ночь" || item == "Наступило утро" || item == "Похолодало") {
-            button->setMinimumSize(200, 50);
-            button->setStyleSheet("QPushButton {"
-
-                                  "background-color: #b3a2ee; "
-                                  "border-radius: 20px;"
-                                  "padding: 15px;"
-                                  "font: bold 14px  'New york';"
-                                  "}");
-            button->setText(item);
-        }
-        bool *isOff = new bool(true); // Используем динамическую память
 
 
         button->setCheckable(true);
         button->setObjectName(item);
-        //button->setStyleSheet(buttonStyle);
         addShadowEffect(button);
         connect(button, &QPushButton::clicked, this, [this, button, item, roomName]() {
             QJsonObject request;
@@ -660,7 +721,7 @@ void MainWindow::displayItemsInGrid(const QVector<QString> &items, const QString
             request["deviceName"] = item;
             request["roomName"]=roomName;
             request["state"] = button->isChecked(); // true (включить) или false (выключить)
-            button->setStyleSheet(button->isChecked() ? "background-color: #8fc98b;""border-radius: 25px;" : "background-color: #f9e2bd;""border-radius: 25px;");
+            button->setStyleSheet(button->isChecked() ? "background-color: rgb(251, 117, 255, 100);""border-radius: 25px;" : "background-color:  rgb(191, 161, 249, 50);""border-radius: 25px;");
             NetworkManager::instance().sendRequest(request);
 
         });
@@ -722,6 +783,48 @@ void MainWindow::displayItemsInGrid(const QVector<QString> &items, const QString
         }
     }
 }
+void MainWindow::displayAllSensorsInGrid(const QVector<QString> &items){
+    clearGridLayout(gridLayout);
+    int row = 0, col = 0;
+    for (const QString &item : items) {
+        QStringList parts = item.split(":");
+        if (parts.size() < 2) {
+            continue;
+        }
+
+        QString sensor = parts[0].trimmed();
+        QStringList rooms = parts[1].split(",");
+        for (const QString &room : rooms) {
+            QString roomTrimmed = room.trimmed();
+            QString buttonText = roomTrimmed + "\n" + sensor;
+            qDebug()<<buttonText;
+            QPushButton *button = new QPushButton(buttonText,this);
+            button->setFixedSize(170, 140);
+            QString buttonStyle = "QPushButton {"
+                                  "background-color: rgb(191, 161, 249, 50);"
+                                  "border-radius: 20px;"
+                                  "padding: 10px;"
+                                  "color: #e7c9ef;"
+
+                                  "font: bold 18px 'New York';"
+
+                                  "}"
+                                  "QPushButton:hover {"
+                                  "background-color: rgb(114, 7, 168, 40);"
+                                  "}";
+
+            button->setObjectName(buttonText);
+            button->setStyleSheet(buttonStyle);
+            addShadowEffect(button);
+            gridLayout->addWidget(button, row, col);
+
+            if (++col >= 3) {
+                col = 0;
+                ++row;
+            }
+        }
+    }
+}
 void MainWindow::displayAllDevicesInGrid(const QVector<QString> &items)
 {
     clearGridLayout(gridLayout);
@@ -738,7 +841,7 @@ void MainWindow::displayAllDevicesInGrid(const QVector<QString> &items)
         for (const QString &room : rooms) {
             QString roomTrimmed = room.trimmed();
             QString buttonText = roomTrimmed + "\n" + device;
-
+            qDebug()<<buttonText;
             QPushButton *button = new QPushButton(buttonText,this);
             button->setFixedSize(170, 140);
             button->setCheckable(true);
@@ -772,14 +875,14 @@ void MainWindow::displayAllDevicesInGrid(const QVector<QString> &items)
 //                 *isOff = !(*isOff); // Переключаем состояние
 
 
-            connect(button, &QPushButton::clicked, this, [this, button, item, roomTrimmed]() {
+            connect(button, &QPushButton::clicked, this, [this, button, device, roomTrimmed]() {
                 QJsonObject request;
                 request["action"] = "toggleDevice";
-                request["deviceName"] = item;
+                request["deviceName"] = device;
                 request["roomName"] = roomTrimmed;
-                qDebug() << "Device:" << item << ", Room:" << roomTrimmed;
+                qDebug() << "Device:" << device << ", Room:" << roomTrimmed;
                 request["state"] = button->isChecked(); // true (включить) или false (выключить)
-                button->setStyleSheet(button->isChecked() ? "background-color: #8fc98b;""border-radius: 20px;""padding: 20px;""font: bold 23px 'Oswald';}""color: #e7c9ef;" : "background-color: rgb(191, 161, 249, 50);""border-radius: 20px;""padding: 20px;""color: #e7c9ef;""font: bold 23px 'Oswald';");
+                button->setStyleSheet(button->isChecked() ? "background-color: rgb(251, 117, 255, 100);""border-radius: 20px;""padding: 20px;""font: bold 23px 'Oswald';}""color: #e7c9ef;" : "background-color: rgb(191, 161, 249, 50);""border-radius: 20px;""padding: 20px;""color: #e7c9ef;""font: bold 23px 'Oswald';");
                 NetworkManager::instance().sendRequest(request);
 
 

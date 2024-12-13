@@ -51,6 +51,12 @@ SmartHouseSystemServer::SmartHouseSystemServer(QObject *parent)
                     processRoomDevicesRequest(socket, request);
                 }else if (action=="toggleDevice"){
                     processToggleDeviceRequest(socket, request);
+                }else if (action=="loadScenarioDevices"){
+                    processLoadScenarioDevicesRequest(socket, request);
+                }else if (action=="toggleScenario"){
+                    processToggleScenarioRequest(socket, request);
+                }else if (action=="loadRoomSensors"){
+                    processLoadRoomSensors(socket, request);
                 }
 
             }
@@ -174,7 +180,7 @@ void SmartHouseSystemServer::processLoadDevicesRequest(QTcpSocket *socket, const
     QJsonArray devicesArray;
     for (auto it = devices.begin(); it != devices.end(); ++it) {
         QJsonObject deviceObject;
-        deviceObject["type"] = it.key();
+        deviceObject["name"] = it.key();
         deviceObject["rooms"] = QJsonArray::fromStringList(it.value());
         devicesArray.append(deviceObject);
     }
@@ -182,13 +188,37 @@ void SmartHouseSystemServer::processLoadDevicesRequest(QTcpSocket *socket, const
     socket->write(QJsonDocument(response).toJson());
     socket->flush();
 }
-
+void SmartHouseSystemServer::determineDeviceGroup(const QString &deviceType,QString &deviceGroup, QJsonObject &parameters){
+    if (deviceType == "лампа"||deviceType == "шторы") {
+        deviceGroup = "освещение";
+        parameters["on"] = false;
+    } else if (deviceType == "кондиционер"||(deviceType == "обогреватель")||(deviceType == "тёплый пол")) {
+        deviceGroup = "отопление";
+        parameters["temperature"] = 22;
+        parameters["on"] = false;
+    }  else if (deviceType == "увлажнитель") {
+        deviceGroup = "отопление";
+        parameters["humidity"] = 50;
+        parameters["on"] = false;
+    } else if (deviceType == "кофемашина"||deviceType == "стиральная машина"||deviceType == "робот-пылесос"||deviceType == "колонка") {
+        deviceGroup = "бытовая техника";
+        parameters["on"] = false;
+    } else if (deviceType == "замок"||deviceType == "сигнализация") {
+        deviceGroup = "безопасность";
+        parameters["on"] = false;
+    } else {
+        qDebug() << "Unknown device type: " << deviceType;
+    }
+}
 void SmartHouseSystemServer::processAddDeviceRequest(QTcpSocket *socket, const QJsonObject &request) {
     QString roomName = request["roomName"].toString();
     QString deviceType = request["deviceType"].toString();
 
     QString generatedDeviceName;
-    bool success = DatabaseManager::instance().addDevice(roomName, deviceType, generatedDeviceName);
+    QString deviceGroup;
+    QJsonObject parameters;
+    determineDeviceGroup(deviceType, deviceGroup, parameters);
+    bool success = DatabaseManager::instance().addDevice(roomName, deviceType, generatedDeviceName, deviceGroup, parameters);
 
     QJsonObject response;
     response["action"] = "addDevice";
@@ -200,16 +230,17 @@ void SmartHouseSystemServer::processAddDeviceRequest(QTcpSocket *socket, const Q
 
         QJsonObject flaskRequest;
         flaskRequest["deviceName"] = generatedDeviceName;
-        flaskRequest["deviceType"] = deviceType;
+        flaskRequest["deviceGroup"] = deviceGroup;
         flaskRequest["roomName"] = roomName;
-        sendCreateContainerRequest(generatedDeviceName, deviceType, roomName);
+        sendCreateContainerRequest(generatedDeviceName, deviceGroup, roomName);
     }
 
     socket->write(QJsonDocument(response).toJson());
     socket->flush();
-
 }
-void SmartHouseSystemServer::sendCreateContainerRequest(const QString &deviceName, const QString &deviceType, const QString &roomName) {
+
+
+void SmartHouseSystemServer::sendCreateContainerRequest(const QString &deviceName, const QString &deviceGroup, const QString &roomName) {
     QNetworkAccessManager *networkManager = new QNetworkAccessManager(this);
     QUrl url("http://flask_manager:5000/create_image");
 
@@ -218,7 +249,7 @@ void SmartHouseSystemServer::sendCreateContainerRequest(const QString &deviceNam
 
     QJsonObject json;
     json["device_name"] = deviceName;
-    json["device_type"] = deviceType;
+    json["device_group"] = deviceGroup;
     json["room_name"] = roomName;
 
 
@@ -279,6 +310,48 @@ void SmartHouseSystemServer::processToggleDeviceRequest(QTcpSocket *socket, cons
     socket->flush();
 }
 
+void SmartHouseSystemServer::toggleScenario(const QString &scenarioName, bool state, QJsonArray devices) {
+    QNetworkAccessManager *networkManager = new QNetworkAccessManager(this);
+    QUrl url("http://flask_manager:5000/toggle_scenario");
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QJsonObject json;
+    json["scenario_name"] = scenarioName;
+    json["action"] = state ? "activate" : "deactivate";
+    json["devices"] = devices;
+
+    QJsonDocument doc(json);
+    QByteArray data = doc.toJson();
+    qDebug() << "Sending request to Flask:" << data;
+    QNetworkReply *reply = networkManager->post(request, data);
+    connect(reply, &QNetworkReply::finished, [reply, scenarioName, state, devices]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            qDebug() << (state ? "Scenario activated:" : "Scenario deactivated:") << reply->readAll();
+        } else {
+            qDebug() << "Failed to toggle scenario state:" << reply->errorString();
+        }
+        reply->deleteLater();
+    });
+}
+void SmartHouseSystemServer::processToggleScenarioRequest(QTcpSocket *socket, const QJsonObject &request) {
+    QString scenarioName = request["scenarioName"].toString();
+    bool state = request["state"].toBool();
+    QJsonArray devices = DatabaseManager::instance().getDevicesByScenario(scenarioName);
+
+    QJsonObject response;
+    response["action"] = "toggleScenario";
+    response["scenarioName"] = scenarioName;
+    response["devices"] = devices;
+
+    toggleScenario(scenarioName, state, devices);
+
+    response["success"] = true;
+    response["message"] = state ? "Scenario activated successfully." : "Scenario deactivated successfully.";
+
+    socket->write(QJsonDocument(response).toJson());
+    socket->flush();
+}
 
 
 void SmartHouseSystemServer::processLoadScenariosRequest(QTcpSocket *socket, const QJsonObject &request) {
@@ -293,12 +366,57 @@ void SmartHouseSystemServer::processLoadScenariosRequest(QTcpSocket *socket, con
 
 void SmartHouseSystemServer::processAddScenarioRequest(QTcpSocket *socket, const QJsonObject &request) {
     QString scenarioName = request["scenarioName"].toString();
-    bool success = DatabaseManager::instance().addScenario(scenarioName);
+    QJsonArray devicesArray = request["devices"].toArray();
+    bool success = DatabaseManager::instance().addScenario(scenarioName, devicesArray);
 
     QJsonObject response;
+
+    if (!success) {
+        response["action"] = "addScenario";
+        response["success"] = false;
+        response["message"] = "Failed to create scenario.";
+        socket->write(QJsonDocument(response).toJson());
+        socket->flush();
+        return;
+    }
     response["action"] = "addScenario";
-    response["success"] = success;
-    response["message"] = success ? "Scenario added successfully." : "Failed to add scenario.";
+    response["success"] = true;
+    response["message"] = "Scenario added successfully.";
+    socket->write(QJsonDocument(response).toJson());
+    socket->flush();
+}
+
+void SmartHouseSystemServer::processLoadScenarioDevicesRequest(QTcpSocket *socket, const QJsonObject &request){
+    QMap<QString, QStringList> devices = DatabaseManager::instance().getAllDevices();
+    QJsonObject response;
+    response["action"] = "loadScenarioDevices";
+
+    QJsonArray devicesArray;
+    for (auto it = devices.begin(); it != devices.end(); ++it) {
+        QJsonObject deviceObject;
+        deviceObject["type"] = it.key();
+        deviceObject["rooms"] = QJsonArray::fromStringList(it.value());
+        devicesArray.append(deviceObject);
+    }
+    response["devices"] = devicesArray;
+    socket->write(QJsonDocument(response).toJson());
+    socket->flush();
+}
+void SmartHouseSystemServer::processLoadRoomSensors(QTcpSocket *socket, const QJsonObject &request){
+    QMap<QString, QStringList> sensors = DatabaseManager::instance().getAllRoomSensors();
+
+    QJsonObject response;
+    response["action"] = "loadRoomSensors";
+
+    QJsonArray sensorsArray;
+    for (auto it = sensors.begin(); it != sensors.end(); ++it) {
+        QJsonObject sensorObject;
+        sensorObject["type"] = it.key();
+        sensorObject["rooms"] = QJsonArray::fromStringList(it.value());
+        sensorsArray.append(sensorObject);
+    }
+    response["sensors"] = sensorsArray;
+
     socket->write(QJsonDocument(response).toJson());
     socket->flush();
 }
